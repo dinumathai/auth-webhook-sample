@@ -1,0 +1,6 @@
+authConfig:
+  serverAddress: 8443
+  v0:
+    source: "file"
+    userDetailFilePath: config/user_details.yaml
+  authSigningKey: the_jwt_sign_in_key

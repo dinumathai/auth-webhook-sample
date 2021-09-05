@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+  namespace: auth-webhook-sample
+  labels:
+    app: auth-webhook-sample
+    service: auth
+spec:
+  type: NodePort
+  ports:
+    - port: 8443
+      nodePort: 30777
+      name: http
+  selector:
+    app: auth-webhook-sample
+    service: auth
+

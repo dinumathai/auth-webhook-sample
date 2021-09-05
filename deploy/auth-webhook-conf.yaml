@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Config
+clusters:
+  - name: auth-service
+    cluster:
+      certificate-authority: /var/lib/minikube/certs/auth/ca/ca.crt
+      server: https://192.168.1.35:8443/v0/authenticate
+
+users:
+  - name: auth-api-server
+    user:
+      client-certificate: /var/lib/minikube/certs/auth/ca/server.crt
+      client-key: /var/lib/minikube/certs/auth/ca/server.key
+
+current-context: webhook
+contexts:
+- context:
+    cluster: auth-service
+    user: auth-api-server
+  name: webhook
