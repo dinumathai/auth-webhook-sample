@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: auth-webhook-sample
+  labels:
+    app: auth-webhook-sample
+    service: auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-webhook-sample
+      service: auth
+  template:
+    metadata:
+      labels:
+        app: auth-webhook-sample
+        service: auth
+    spec:
+      imagePullSecrets:
+      - name: deploy-registry-token 
+      containers:
+      - name: auth
+        image: registry.gitlab.com/bestofus2020/auth
+        ports:
+        - containerPort: 8443
+        env:
+        - name: LOG_LEVEL
+          value: "DEBUG"
+        - name: AUTH_CERT_TLS_CRT
+          valueFrom:
+            secretKeyRef:
+              name: auth-tls
+              key: tls.crt
+        - name: AUTH_CERT_TLS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: auth-tls
+              key: tls.key
+

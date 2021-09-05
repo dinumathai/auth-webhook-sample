@@ -1,0 +1,17 @@
+userDetails:
+  admin:
+    password: admin
+    groups:
+    - g_admin
+    - g_write
+    - g_read
+  write:
+    password: write
+    groups:
+    - g_write
+    - g_read
+  read:
+    userName: read
+    password: read
+    groups:
+    - g_read
