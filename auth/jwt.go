@@ -105,6 +105,7 @@ func getRequestBody(body io.ReadCloser) (types.Request, error) {
 		return types.Request{}, err
 	}
 	rawContent := json.RawMessage(string(content))
+	log.Debugf("Request body : %s", rawContent)
 	marshaledContent, err := rawContent.MarshalJSON()
 	if err != nil {
 		log.Debugf("Error in marshaling request body : %s", err)
