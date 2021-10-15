@@ -1,14 +1,19 @@
 # Kubernetes authentication/authorization webhook using golang in minikube
 
-Here we are discussing mainly on how webhooks can be used to delegate authentication and authorization in Kubernetes. We will discuss about authentication webhook first, authorization using RBAC second and then authorization webhook.
+Here we are discussing mainly on how webhooks can be used to delegate authentication and authorization in Kubernetes. 
 
-[auth-webhook-sample](https://github.com/dinumathai/auth-webhook-sample) is a sample Kubernetes authentication/authorization webhook application. The code is structured to extend for further use cases like authentication against AD or some other open id provider like Azure AD.
+We will discuss about 
+1. [Authentication webhook](#authentication-webhook)
+1. [RBAC Authorization](#rbac-authorization)
+1. [Authorization webhook](#authorization-webhook)
+1. [Build and deploy in minikube](#build-and-deploy-in-minikube)
 
-# PART 1 : Authentication webhook
+[auth-webhook-sample](https://github.com/dinumathai/auth-webhook-sample) is a sample Kubernetes authentication and authorization webhook application. The code is structured to extend for further use cases like authentication against AD or some other open id provider like Azure AD.
+
+# Authentication webhook
 Kubernetes authentication webhook can be used to delegate authentication outside of the Kubernetes.
 
 ## Why authentication webhook
-
 Kubernetes has below way of managing authentication.
 1. Using valid certificate signed by the cluster's certificate authority (CA).
 1. Using static token file.
@@ -16,13 +21,6 @@ Kubernetes has below way of managing authentication.
 1. Kubernetes service account.
 
 Read about them at [Kubernetes Authentication](https://kubernetes.io/docs/reference/access-authn-authz/authentication/). If none of them serve your purpose, Kubernetes authentication webhook is your best option(preferred over authenticating proxy). Usually webhook is used for integration with authentication system like LDAP, SAML etc.
-
-## Prerequisites
-1. Basic understanding of Kubernetes.
-1. Minikube running in local machine.
-1. openssl
-1. Kubectl must be installed locally and must have a basic understanding of config for `kubectl`.
-1. Docker Or Golang must be installed locally.
 
 ## How authentication webhook works
 ![authentication webhook flow](./doc/webhook-flow.png)
@@ -36,7 +34,6 @@ Read about them at [Kubernetes Authentication](https://kubernetes.io/docs/refere
 
 
 ## What is authentication webhook?
-
 Authentication webhook is a HTTPS service that receives a request in defined format. The request is validated and must return back a response in defined format.
 
 ### Request Details
@@ -82,101 +79,7 @@ __Response body__ :
 }
 ```
 
-## Create the certificate
-
-The [deploy/ca/server.conf](deploy/ca/server.conf) must be modified and add your local system ip instead of `192.168.1.35`. And [deploy/ca/server.crt](deploy/ca/server.crt) must be regenerated using below commands.
-
-```
-openssl req -new -key server.key -out server.csr -config server.conf
-
-# Sign the server certificate with the above CA
-openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 100000 -extensions v3_req -extfile server.conf
-```
-Commands to generate the all certificate files are available at [deploy/ca/README.md](deploy/ca/README.md).
-
-## Building & Run webhook using docker
-The below docker is already uploaded to docker hub. So you can directly run the docker run command to bring up the authentication webhook.
-```
-git clone git@github.com/dinumathai/auth-webhook-sample.git
-cd auth-webhook-sample
-docker build -t dmathai/auth-webhook-sample:latest -f Dockerfile .
-
-# GENERATE the server.crt and server.key
-export AUTH_CERT_TLS_CRT=$(cat deploy/ca/server.crt)
-export AUTH_CERT_TLS_KEY=$(cat deploy/ca/server.key)
-docker run --env AUTH_CERT_TLS_KEY=$AUTH_CERT_TLS_KEY --env AUTH_CERT_TLS_CRT=$AUTH_CERT_TLS_CRT -p 8443:8443 dmathai/auth-webhook-sample:latest
-```
-The webhook application will at https://localhost:8443/.
-
-## Building & Run webhook locally
-If you want to run the application locally with our docker. Please follow below commands.
-```
-git clone git@github.com/dinumathai/auth-webhook-sample.git
-cd auth-webhook-sample
-go build github.com/dinumathai/auth-webhook-sample
-
-# GENERATE the server.crt and server.key
-export AUTH_CERT_TLS_CRT=$(cat deploy/ca/server.crt)
-export AUTH_CERT_TLS_KEY=$(cat deploy/ca/server.key)
-./auth-webhook-sample
-```
-The webhook application will at https://localhost:8443/.
-
-## API Details
-
-### Generate Auth JWT token
-In this api the user credentials/details are managed by the auth service. Refer [config/user_details.yaml](config/user_details.yaml) to see the list of user and the groups configured for the users. The filepath of user details is configured in `v0.userDetailFilePath` of [config/auth_config.yaml](config/auth_config.yaml). 
-
-[Configuration file is explained here](doc/configuration.md)
-```
-curl -X POST --insecure https://localhost:8443/v0/login  -u __YOUR_USERNAME__:__YOUR_PASSWORD__
-```
-
-### Validate the Token
-This URL will be used by Kubernetes to validate the token.
-```
-curl -X POST --insecure https://localhost:8443/v0/authenticate  -H 'Authorization: Bearer XXXXXXXXX'
-```
-
-```
-curl -X POST --insecure https://localhost:8443/v0/authenticate -d '{
-  "apiVersion": "authentication.k8s.io/v1beta1",
-  "kind": "TokenReview",
-  "spec": {
-    "token": "XXXXXXX"
-  }
-}'
-```
-
-## Deploy in minikube
-Assuming that the authentication webhook is running in https://192.168.1.35:8443/. If not you have to make sure [deploy/auth-webhook-conf.yaml](deploy/auth-webhook-conf.yaml) is updated with proper url. Also [deploy/ca/server.conf](deploy/ca/server.conf) is modified and [deploy/ca/server.crt](deploy/ca/server.crt) is regenerated.
-
-1. Start minikube
-1. Create `ClusterRoleBinding` using - `kubectl apply deploy/create-cluster-role-binding.yaml`. We are creating the cluster-role-binding for a groups `g_admin`, `g_write` and `g_read`. The user `admin` is configured to have groups `g_admin`, refer [config/user_details.yaml](config/user_details.yaml). Read more at [Kubernetes RBAC Authorization
-](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
-1. Stop minikube.
-1. Create a folder with name `var/lib/minikube/certs/auth`(`mkdir -p var/lib/minikube/certs/auth`) inside `$HOME/.minikube/files`.
-1. Copy [deploy/ca/ca.crt](deploy/ca/ca.crt), [deploy/ca/server.crt](deploy/ca/server.crt), [deploy/ca/server.key](deploy/ca/server.key) and [deploy/auth-webhook-conf.yaml](deploy/auth-webhook-conf.yaml) to `$HOME/.minikube/files/var/lib/minikube/certs/auth` folder. All these files will be available inside `/var/lib/minikube/certs/auth` folder of minikube container. You can confirm this by restarting minikube and doing `minikube ssh`.
-1. Restart minikube with command `minikube start --driver=docker --extra-config apiserver.authorization-mode=RBAC --extra-config apiserver.authentication-token-webhook-config-file=/var/lib/minikube/certs/auth/auth-webhook-conf.yaml`.
-
-## Test authentication webhook
-1. Generate the token using the curl `curl -X POST --insecure https://localhost:8443/v0/login  -u admin:admin`
-2. Add new user to the `kubectl` config with token and change the context to point to the new user. The below commands will help to do this.
-```
-# Add new user "admin" with generated token
-kubectl config set-credentials admin --token=XXXXXXXXXXX
-# Change the context "minikube" to point to user "admin"
-kubectl config set-context minikube --user=admin
-```
-3. `kubectl get pods --all-namespaces` must return some pods and you must get some logs in webhook application. Done !!!
-
-## Debugging tips
-1. If the `minikube` is not starting with webhook config. Do `minikube ssh` to get into the minikube docker container. Run command `docker ps | grep apiserver` to get the api-server container. `docker logs <container_id>` to get the logs.
-1. If you are getting error `error: You must be logged in to the server (Unauthorized)`. View the logs of webhook application to see whether any request is reaching the webhook application. Also refer the apiserver logs to make sure that cluster is  able to communicate with authentication webhook.
-1. If request if not reaching webhook application but the `kubectl` commands are working. Each time the `minikube` is restarted the `kubectl` config will be reset. Please make sure that the context is pointing to the user with token. Also there is a default cache time of 30sec for which the cluster will cache the response from webhook.
-1. If you are getting some error like `Error: pods is forbidden: User "admin" cannot list resource "pods" in API group ""`. Open [https://jwt.io/](https://jwt.io/) make sure that the token is having expected `groups` in the jwt token. If expected `groups` are there it has to do something with with Kubernetes `Roles/ClusterRoles` or `RoleBinding/ClusterRoleBinding`. Continue reading to learn more.
-
-# PART 2 : RBAC Authorization
+# RBAC Authorization
 We have see that each user will be having a set of groups - [config/user_details.yaml](config/user_details.yaml). Now we will discuss on how to give permission(authorize) the groups for kubernetes objects(deployment.secret etc).
 
 ##  Type of Kubernetes User Authorization
@@ -188,6 +91,7 @@ We have see that each user will be having a set of groups - [config/user_details
 1. __apiGroups__: indicates the core API group
 1. __resources__: Kubernetes resources like "pods", "secrets", "deployments" etc
 1. __verbs__: Action like  "list", "get", "update" etc. Refer [here](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#determine-the-request-verb)
+1. __resourceNames__: List of resource name to which access must be given.
 1. __namespaces__: To grand access to cluster level resources and resources on all the namespace `ClusterRoles` and `ClusterRoleBindings` are used. To grant permission resources on a single namespace `Roles` and `RoleBindings` are used.
 
 ## Kubernetes RBAC Authorization objects.
@@ -233,8 +137,7 @@ rules:
 - apiGroups: [""] # "" indicates the core API group
   resources: ["pods","deployments"]
   verbs: ["get", "watch", "list"]
-```
-```
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -252,11 +155,174 @@ subjects:
 Read more at [Kubernetes Authorization documentation](https://kubernetes.io/docs/reference/access-authn-authz/authorization/).
 
 
-# PART 3 : Authorization webhook
+# Authorization webhook
+Authorization webhook is used to delegate authorization in Kubernetes. Also please note that this is an option rarely used in Kubernetes clusters. It is always advice to use built-in RBAC Authorization.
 
-## Coming Soon..... 
+## What is Authorization webhook?
 
+Authorization webhook is a HTTPS service that receives a request in defined format. The request is validated and must return back a response in defined format.
 
+__Request body__
+```
+{
+  "kind": "SubjectAccessReview",
+  "apiVersion": "authorization.k8s.io/v1beta1",
+  "metadata": {
+    "creationTimestamp": null
+  },
+  "spec": {
+    "resourceAttributes": {
+      "verb": "get",
+      "group": "storage.k8s.io",
+      "version": "v1",
+      "resource": "csinodes",
+      "name": "minikube"
+    },
+    "user": "system:node:minikube",
+    "group": [
+      "system:nodes",
+      "system:authenticated"
+    ]
+  },
+  "status": {
+    "allowed": false
+  }
+}
+```
+__Access Granted Response__
+```
+{
+  "apiVersion": "authorization.k8s.io/v1",
+  "kind": "SubjectAccessReview",
+  "status": {
+    "allowed": true
+  }
+}
+```
+__Access Denied Response__
+```
+{
+  "apiVersion": "authorization.k8s.io/v1",
+  "kind": "SubjectAccessReview",
+  "status": {
+    "allowed": false,
+    "denied": true,
+    "reason": "User do not have access to resource"
+  }
+}
+```
+
+# Build and deploy in minikube
+To get the webhooks up and running in minikube. First we have have generate certificates for webhooks, bring up the webhook and then configure the minikuke to use it. And finally test it :-).
+
+## Prerequisites
+1. Basic understanding of Kubernetes.
+1. Minikube running in local machine.
+1. openssl
+1. Kubectl must be installed locally and must have a basic understanding of config for `kubectl`.
+1. Docker Or Golang must be installed locally.
+
+## Create the certificate
+
+The [deploy/ca/server.conf](deploy/ca/server.conf) must be modified and add your local system ip instead of `192.168.1.35`(Update on two places). And [deploy/ca/server.crt](deploy/ca/server.crt) must be regenerated using below commands.
+
+```
+git clone git@github.com/dinumathai/auth-webhook-sample.git
+cd auth-webhook-sample
+openssl req -new -key deploy/ca/server.key -out deploy/ca/server.csr -config deploy/ca/server.conf
+
+# Sign the server certificate with the above CA
+openssl x509 -req -in deploy/ca/server.csr -CA deploy/ca/ca.crt -CAkey deploy/ca/ca.key -CAcreateserial -out deploy/ca/server.crt -days 100000 -extensions v3_req -extfile deploy/ca/server.conf
+```
+Commands to generate the all certificate files are available at [deploy/ca/README.md](deploy/ca/README.md).
+
+## Building & Run webhook using docker
+The below docker is already uploaded to docker hub. So you can directly run the docker run command to bring up the authentication webhook.
+```
+docker build -t dmathai/auth-webhook-sample:latest -f Dockerfile .
+
+# GENERATE the server.crt and server.key
+export AUTH_CERT_TLS_CRT=$(cat deploy/ca/server.crt)
+export AUTH_CERT_TLS_KEY=$(cat deploy/ca/server.key)
+docker run --env AUTH_CERT_TLS_KEY=$AUTH_CERT_TLS_KEY --env AUTH_CERT_TLS_CRT=$AUTH_CERT_TLS_CRT -p 8443:8443 dmathai/auth-webhook-sample:latest
+```
+The webhook application will at https://localhost:8443/.
+
+## Building & Run webhook locally
+If you want to run the application locally with our docker. Please follow below commands.
+```
+go build github.com/dinumathai/auth-webhook-sample
+
+# GENERATE the server.crt and server.key
+export AUTH_CERT_TLS_CRT=$(cat deploy/ca/server.crt)
+export AUTH_CERT_TLS_KEY=$(cat deploy/ca/server.key)
+./auth-webhook-sample
+```
+The webhook application will at https://localhost:8443/.
+
+## API Details
+
+### Generate Auth JWT token
+In this api the user credentials/details are managed by the auth service. Refer [config/user_details.yaml](config/user_details.yaml) to see the list of user and the groups configured for the users. The filepath of user details is configured in `v0.userDetailFilePath` of [config/auth_config.yaml](config/auth_config.yaml). 
+
+[Configuration file is explained here](doc/configuration.md)
+```
+curl -X POST --insecure https://localhost:8443/v0/login  -u __YOUR_USERNAME__:__YOUR_PASSWORD__
+```
+
+### Validate the Token
+This URL will be used by Kubernetes to validate the token.
+```
+curl -X POST --insecure https://localhost:8443/v0/authenticate  -H 'Authorization: Bearer XXXXXXXXX'
+```
+
+```
+curl -X POST --insecure https://localhost:8443/v0/authenticate -d '{
+  "apiVersion": "authentication.k8s.io/v1beta1",
+  "kind": "TokenReview",
+  "spec": {
+    "token": "XXXXXXX"
+  }
+}'
+```
+
+## Deploy in minikube
+Assuming that the authentication webhook is running in https://192.168.1.35:8443/. If not you have to make sure [deploy/auth-webhook-conf.yaml](deploy/auth-webhook-conf.yaml) is updated with proper url. Also [deploy/ca/server.conf](deploy/ca/server.conf) is modified and [deploy/ca/server.crt](deploy/ca/server.crt) is regenerated.
+
+1. Start minikube
+1. Create `ClusterRoleBinding` using - `kubectl apply deploy/create-cluster-role-binding.yaml`. We are creating the cluster-role-binding for a groups `g_admin`, `g_write` and `g_read`. The user `admin` is configured to have groups `g_admin`, refer [config/user_details.yaml](config/user_details.yaml). Read more at [Kubernetes RBAC Authorization
+](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
+1. Stop minikube.
+1. Create a folder with name `var/lib/minikube/certs/auth`(`mkdir -p var/lib/minikube/certs/auth`) inside `$HOME/.minikube/files`.
+1. Copy [deploy/ca/ca.crt](deploy/ca/ca.crt), [deploy/authorize-webhook-conf.yaml](deploy/authorize-webhook-conf.yaml) and [deploy/auth-webhook-conf.yaml](deploy/auth-webhook-conf.yaml) to `$HOME/.minikube/files/var/lib/minikube/certs/auth` folder. All these files will be available inside `/var/lib/minikube/certs/auth` folder of minikube container. You can confirm this by restarting minikube and doing `minikube ssh`.
+1. Restart minikube with below command.
+
+Only with authentication webhook
+```
+minikube start --driver=docker --extra-config apiserver.authorization-mode=RBAC --extra-config apiserver.authentication-token-webhook-config-file=/var/lib/minikube/certs/auth/auth-webhook-conf.yaml
+```
+
+With authentication and authorization webhook
+```
+minikube start --driver=docker --extra-config apiserver.authorization-mode=RBAC,Webhook --extra-config apiserver.authentication-token-webhook-config-file=/var/lib/minikube/certs/auth/auth-webhook-conf.yaml --extra-config apiserver.authorization-webhook-config-file=/var/lib/minikube/certs/auth/authorize-webhook-conf.yaml
+```
+
+## Test authentication webhook
+1. Generate the token using the curl `curl -X POST --insecure https://localhost:8443/v0/login  -u admin:admin`
+2. Add new user to the `kubectl` config with token and change the context to point to the new user. The below commands will help to do this.
+```
+# Add new user "admin" with generated token
+kubectl config set-credentials admin --token=XXXXXXXXXXX
+# Change the context "minikube" to point to user "admin"
+kubectl config set-context minikube --user=admin
+```
+3. `kubectl get pods --all-namespaces` must return some pods and you must get some logs in webhook application. Done !!!
+
+## Debugging tips
+1. If the `minikube` is not starting with webhook config. Do `minikube ssh` to get into the minikube docker container. Run command `docker ps | grep apiserver` to get the api-server container. `docker logs <container_id>` to get the logs.
+1. If you are getting error `error: You must be logged in to the server (Unauthorized)`. View the logs of webhook application to see whether any request is reaching the webhook application. Also refer the apiserver logs to make sure that cluster is  able to communicate with authentication webhook.
+1. If request if not reaching webhook application but the `kubectl` commands are working. Each time the `minikube` is restarted the `kubectl` config will be reset. Please make sure that the context is pointing to the user with token. Also there is a default cache time of 30sec for which the cluster will cache the response from webhook.
+1. If you are getting some error like `Error: pods is forbidden: User "admin" cannot list resource "pods" in API group ""`. Open [https://jwt.io/](https://jwt.io/) make sure that the token is having expected `groups` in the jwt token. If expected `groups` are there it has to do something with with Kubernetes `Roles/ClusterRoles` or `RoleBinding/ClusterRoleBinding`. Continue reading to learn more.
 
 ## References 
 

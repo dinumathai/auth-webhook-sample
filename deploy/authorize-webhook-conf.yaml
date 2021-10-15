@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Config
 clusters:
-  - name: authentication-service
+  - name: authorize-service
     cluster:
       certificate-authority: /var/lib/minikube/certs/auth/ca.crt
-      server: https://192.168.1.35:8443/v0/authenticate
+      server: https://192.168.1.35:8443/v0/authorize
 
 users:
-  - name: authentication-api-server
+  - name: authorize-api-server
     user:
       # This will come in the request header(Authorization) of above URL.
       # Can be used to validate if the request is coming from configured cluster
@@ -16,6 +16,6 @@ users:
 current-context: webhook
 contexts:
 - context:
-    cluster: authentication-service
-    user: authentication-api-server
+    cluster: authorize-service
+    user: authorize-api-server
   name: webhook

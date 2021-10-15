@@ -8,7 +8,7 @@ openssl req -x509 -new -nodes -key ca.key -days 100000 -out ca.crt -extensions v
 ```
 
 ## Create a server certificate.
-Edit the server.conf for default domain(sidecar-injector.default.svc) name change.
+Edit the server.conf for domain(sidecar-injector.default.svc) name change. If you are hosting your app in a domain change the `commonName` and the `DNS.1` under `[alt_names]`. If you are hosting your app in an IP change the `commonName` and the `IP.1` under `[alt_names]`.
 ```
 openssl genrsa -out server.key 2048
 openssl req -new -key server.key -out server.csr -config server.conf
@@ -20,10 +20,10 @@ openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out s
 
 ## Create configmap/secret with server.key and server.crt
 ```
-kubectl create configmap sidecar-injector-cert --from-file=/path/to/server/cert
+kubectl create configmap auth-tls --from-file=/path/to/server/cert
 ```
 OR
 ```
-kubectl create secret tls my-tls-secret --cert=path/to/cert/server.crt  --key=path/to/key/server.key
+kubectl create secret tls auth-tls --cert=path/to/cert/server.crt  --key=path/to/key/server.key
 ```
 

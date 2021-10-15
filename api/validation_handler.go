@@ -10,9 +10,9 @@ import (
 )
 
 //ValidationHandler validates the token
-func ValidationHandler(majVersion auth.Version) http.HandlerFunc {
+func ValidationHandler(apiVersion auth.Version) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userInfo, statusCode, tokenErr := auth.ValidateToken(r, majVersion)
+		userInfo, statusCode, tokenErr := auth.ValidateToken(r, apiVersion)
 		sendV1BetaResponse(statusCode, userInfo, tokenErr, w)
 	}
 }

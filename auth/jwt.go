@@ -64,7 +64,7 @@ func GenerateToken(user types.User, hclaims string, majVersion Version) (types.T
 }
 
 //ValidateToken validates JWT token provided by user and fills out the UserInfo structure from the data within
-func ValidateToken(req *http.Request, majVersion Version) (types.UserInfo, int, error) {
+func ValidateToken(req *http.Request, apiVersion Version) (types.UserInfo, int, error) {
 	auth := new(bool)
 	*auth = false
 
@@ -78,6 +78,7 @@ func ValidateToken(req *http.Request, majVersion Version) (types.UserInfo, int, 
 	}, fmt.Errorf("Either need valid JWT bearer token in Authorization header or need valid kubernetes webhook auth request (Please refer - %s)", "https://kubernetes.io/docs/reference/access-authn-authz/authentication/#webhook-token-authentication")
 
 	//If body is empty or not able to parse properly then try with Auth header
+	log.Debugf("Request headers : %v", req.Header)
 	request, err := getRequestBody(req.Body)
 	if err != nil {
 		log.Debugf("Unable to parse request body: %v. Trying with Authorization header.", err)
@@ -87,13 +88,13 @@ func ValidateToken(req *http.Request, majVersion Version) (types.UserInfo, int, 
 			return errUserInfo, http.StatusBadRequest, errBadReq
 		}
 
-		return validate(token, majVersion) // note: most work happens here <<<
+		return validate(token, apiVersion) // note: most work happens here <<<
 	}
 
 	log.Debug("Received auth token from body. Skipping Auth Header check.")
 	//Get Auth token from body and validate
 	if request.Spec.Token != "" {
-		return validate(request.Spec.Token, majVersion) // note: most work happens here <<<
+		return validate(request.Spec.Token, apiVersion) // note: most work happens here <<<
 	}
 	return errUserInfo, http.StatusBadRequest, errBadReq
 }
@@ -125,7 +126,7 @@ func getRequestBody(body io.ReadCloser) (types.Request, error) {
 }
 
 // validate does much of the work of ValidateToken
-func validate(bearerToken string, majVersion Version) (types.UserInfo, int, error) {
+func validate(bearerToken string, apiVersion Version) (types.UserInfo, int, error) {
 
 	signingKey := config.AppConfig.AuthConfig.AuthSigningKey
 

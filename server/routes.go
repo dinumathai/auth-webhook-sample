@@ -29,6 +29,12 @@ func BuildRoutes(config *types.ConfigMap) []routing.Route {
 			Pattern:     "/v0/authenticate",
 			HandlerFunc: api.ValidationHandler(auth.V0),
 		},
+		routing.Route{
+			Name:        "V0-Authorize",
+			Method:      "POST",
+			Pattern:     "/v0/authorize",
+			HandlerFunc: api.AuthorizeV0Handler(auth.V0),
+		},
 	}
 	return routes
 }

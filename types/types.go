@@ -118,3 +118,16 @@ type Request struct {
 type Spec struct {
 	Token string `json:"token,omitempty"`
 }
+
+//Authorization response
+type AuthorizationResponse struct {
+	APIVersion string               `json:"apiVersion,omitempty"`
+	Kind       string               `json:"kind,omitempty"`
+	Status     *AuthorizationStatus `json:"status,omitempty"`
+}
+
+type AuthorizationStatus struct {
+	Allowed bool   `json:"allowed,omitempty"`
+	Denied  bool   `json:"denied,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}

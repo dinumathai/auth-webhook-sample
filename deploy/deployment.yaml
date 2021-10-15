@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth
-  namespace: auth-webhook-sample
+  namespace: webhook
   labels:
     app: auth-webhook-sample
     service: auth
@@ -22,7 +22,7 @@ spec:
       - name: deploy-registry-token 
       containers:
       - name: auth
-        image: registry.gitlab.com/bestofus2020/auth
+        image: dmathai/auth-webhook-sample:latest
         ports:
         - containerPort: 8443
         env:
