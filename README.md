@@ -290,7 +290,7 @@ curl -X POST --insecure https://localhost:8443/v0/authenticate -d '{
 Assuming that the authentication webhook is running in https://192.168.1.35:8443/. If not you have to make sure [deploy/auth-webhook-conf.yaml](deploy/auth-webhook-conf.yaml) is updated with proper url. Also [deploy/ca/server.conf](deploy/ca/server.conf) is modified and [deploy/ca/server.crt](deploy/ca/server.crt) is regenerated.
 
 1. Start minikube
-1. Create `ClusterRoleBinding` using - `kubectl apply deploy/create-cluster-role-binding.yaml`. We are creating the cluster-role-binding for a groups `g_admin`, `g_write` and `g_read`. The user `admin` is configured to have groups `g_admin`, refer [config/user_details.yaml](config/user_details.yaml). Read more at [Kubernetes RBAC Authorization
+1. Create `ClusterRoleBinding` using - `kubectl apply -f deploy/create-cluster-role-binding.yaml`. We are creating the cluster-role-binding for a groups `g_admin`, `g_write` and `g_read`. The user `admin` is configured to have groups `g_admin`, refer [config/user_details.yaml](config/user_details.yaml). Read more at [Kubernetes RBAC Authorization
 ](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
 1. Stop minikube.
 1. Create a folder with name `var/lib/minikube/certs/auth`(`mkdir -p var/lib/minikube/certs/auth`) inside `$HOME/.minikube/files`.
